@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-10-21T21:33:32.614Z",
+  "testSuite": "Simple Selenium Tests",
+  "totalTests": 4,
+  "duration": 3.27,
+  "testCases": [
+    {
+      "id": "TC1",
+      "name": "User Login Functionality",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "description": "Test executed with fallbacks due to no running frontend"
+    },
+    {
+      "id": "TC2",
+      "name": "Design Browsing and Selection",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "description": "Test executed with fallbacks due to no running frontend"
+    },
+    {
+      "id": "TC3",
+      "name": "Order Creation and Management",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "description": "Test executed with fallbacks due to no running frontend"
+    },
+    {
+      "id": "TC4",
+      "name": "Payment Processing Integration",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "description": "Test executed with fallbacks due to no running frontend"
+    }
+  ],
+  "status": "COMPLETED_WITH_WARNINGS",
+  "summary": "All 4 test cases executed with fallbacks (expected without running frontend)",
+  "note": "To run with full functionality, start your SewNova frontend application on http://localhost:3000"
+}

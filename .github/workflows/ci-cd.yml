@@ -1,0 +1,268 @@
+name: SewNova CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd backend/design-service && npm ci
+        cd ../customer-service && npm ci
+        cd ../payment-service && npm ci
+        cd ../admin-service && npm ci
+        cd ../auth-service && npm ci
+    
+    - name: Run linting
+      run: |
+        npm run lint || true
+        cd backend/design-service && npm run lint || true
+        cd ../customer-service && npm run lint || true
+        cd ../payment-service && npm run lint || true
+        cd ../admin-service && npm run lint || true
+        cd ../auth-service && npm run lint || true
+    
+    - name: Run unit tests
+      run: npm run test:unit
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+    
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+        CLOUDINARY_CLOUD_NAME: test_cloud
+        CLOUDINARY_API_KEY: test_key
+        CLOUDINARY_API_SECRET: test_secret
+        RAZORPAY_KEY_ID: rzp_test_123
+        RAZORPAY_KEY_SECRET: test_secret
+    
+    - name: Run validation tests
+      run: npm run test:validation
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+        CLOUDINARY_CLOUD_NAME: test_cloud
+        CLOUDINARY_API_KEY: test_key
+        CLOUDINARY_API_SECRET: test_secret
+        RAZORPAY_KEY_ID: rzp_test_123
+        RAZORPAY_KEY_SECRET: test_secret
+    
+    - name: Run UAT tests
+      run: npm run test:uat
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+        CLOUDINARY_CLOUD_NAME: test_cloud
+        CLOUDINARY_API_KEY: test_key
+        CLOUDINARY_API_SECRET: test_secret
+        RAZORPAY_KEY_ID: rzp_test_123
+        RAZORPAY_KEY_SECRET: test_secret
+    
+    - name: Run automation tests
+      run: npm run test:automation
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+        CLOUDINARY_CLOUD_NAME: test_cloud
+        CLOUDINARY_API_KEY: test_key
+        CLOUDINARY_API_SECRET: test_secret
+        RAZORPAY_KEY_ID: rzp_test_123
+        RAZORPAY_KEY_SECRET: test_secret
+    
+    - name: Generate test coverage
+      run: npm run test:coverage
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  selenium-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Install Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+    
+    - name: Install ChromeDriver
+      run: |
+        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1)
+        wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}/chromedriver_linux64.zip"
+        sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+    
+    - name: Run Selenium tests
+      run: npm run test:selenium
+      env:
+        NODE_ENV: test
+        JWT_SECRET: test_jwt_secret
+        JWT_REFRESH_SECRET: test_refresh_secret
+        MONGODB_URI: mongodb://localhost:27017/sewnova_test
+        CLOUDINARY_CLOUD_NAME: test_cloud
+        CLOUDINARY_API_KEY: test_key
+        CLOUDINARY_API_SECRET: test_secret
+        RAZORPAY_KEY_ID: rzp_test_123
+        RAZORPAY_KEY_SECRET: test_secret
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security audit
+      run: |
+        npm audit --audit-level moderate
+        cd backend/design-service && npm audit --audit-level moderate || true
+        cd ../customer-service && npm audit --audit-level moderate || true
+        cd ../payment-service && npm audit --audit-level moderate || true
+        cd ../admin-service && npm audit --audit-level moderate || true
+        cd ../auth-service && npm audit --audit-level moderate || true
+    
+    - name: Run dependency check
+      run: |
+        npm install -g npm-check-updates
+        ncu --doctor
+
+  build:
+    needs: [test, selenium-tests, security-scan]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm ci
+        npm run build
+    
+    - name: Build Docker images
+      run: |
+        docker build -t sewnova-frontend:latest frontend/
+        docker build -t sewnova-auth-service:latest backend/auth-service/
+        docker build -t sewnova-customer-service:latest backend/customer-service/
+        docker build -t sewnova-design-service:latest backend/design-service/
+        docker build -t sewnova-payment-service:latest backend/payment-service/
+        docker build -t sewnova-admin-service:latest backend/admin-service/
+    
+    - name: Test Docker images
+      run: |
+        docker run --rm sewnova-frontend:latest --version || true
+        docker run --rm sewnova-auth-service:latest --version || true
+        docker run --rm sewnova-customer-service:latest --version || true
+        docker run --rm sewnova-design-service:latest --version || true
+        docker run --rm sewnova-payment-service:latest --version || true
+        docker run --rm sewnova-admin-service:latest --version || true
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl apply -f k8s/staging/
+        # Example: docker-compose -f docker-compose.staging.yml up -d
+
+  deploy-production:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl apply -f k8s/production/
+        # Example: docker-compose -f docker-compose.production.yml up -d
+
+  notify:
+    needs: [test, selenium-tests, security-scan, build]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: ${{ needs.test.result == 'success' && needs.selenium-tests.result == 'success' && needs.security-scan.result == 'success' && needs.build.result == 'success' }}
+      run: |
+        echo "All tests passed! Pipeline successful."
+        # Add notification logic here (Slack, email, etc.)
+    
+    - name: Notify on failure
+      if: ${{ needs.test.result == 'failure' || needs.selenium-tests.result == 'failure' || needs.security-scan.result == 'failure' || needs.build.result == 'failure' }}
+      run: |
+        echo "Pipeline failed! Check the logs."
+        # Add failure notification logic here

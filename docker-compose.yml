@@ -1,0 +1,238 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: sewnova-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: sewnova
+    volumes:
+      - mongodb_data:/data/db
+      - ./backend/mongodb-init:/docker-entrypoint-initdb.d
+    networks:
+      - sewnova-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: sewnova-auth
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+    depends_on:
+      - mongodb
+    networks:
+      - sewnova-network
+
+  # Customer Service
+  customer-service:
+    build:
+      context: ./backend/customer-service
+      dockerfile: Dockerfile
+    container_name: sewnova-customer
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - AUTH_SERVICE_URL=http://auth-service:3001
+    depends_on:
+      - mongodb
+      - auth-service
+    networks:
+      - sewnova-network
+
+  # Admin Service
+  admin-service:
+    build:
+      context: ./backend/admin-service
+      dockerfile: Dockerfile
+    container_name: sewnova-admin
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - AUTH_SERVICE_URL=http://auth-service:3001
+    depends_on:
+      - mongodb
+      - auth-service
+    networks:
+      - sewnova-network
+
+  # Design Service
+  design-service:
+    build:
+      context: ./backend/design-service
+      dockerfile: Dockerfile
+    container_name: sewnova-design
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    depends_on:
+      - mongodb
+    networks:
+      - sewnova-network
+
+  # Tailor Service
+  tailor-service:
+    build:
+      context: ./backend/tailor-service
+      dockerfile: Dockerfile
+    container_name: sewnova-tailor
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - AUTH_SERVICE_URL=http://auth-service:3001
+    depends_on:
+      - mongodb
+      - auth-service
+    networks:
+      - sewnova-network
+
+  # Vendor Service
+  vendor-service:
+    build:
+      context: ./backend/vendor-service
+      dockerfile: Dockerfile
+    container_name: sewnova-vendor
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - AUTH_SERVICE_URL=http://auth-service:3001
+    depends_on:
+      - mongodb
+      - auth-service
+    networks:
+      - sewnova-network
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./backend/payment-service
+      dockerfile: Dockerfile
+    container_name: sewnova-payment
+    restart: unless-stopped
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/sewnova?authSource=admin
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - AUTH_SERVICE_URL=http://auth-service:3001
+    depends_on:
+      - mongodb
+      - auth-service
+    networks:
+      - sewnova-network
+
+  # Measurement Service (Python AI)
+  measurement-service:
+    build:
+      context: ./backend/measurement-service
+      dockerfile: Dockerfile
+    container_name: sewnova-measurement
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - NODE_ENV=production
+      - PORT=8001
+    networks:
+      - sewnova-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sewnova-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=http://localhost:3001
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+      - VITE_RAZORPAY_KEY_ID=${VITE_RAZORPAY_KEY_ID}
+    depends_on:
+      - auth-service
+      - customer-service
+      - admin-service
+      - design-service
+      - tailor-service
+      - vendor-service
+      - payment-service
+    networks:
+      - sewnova-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: sewnova-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - auth-service
+      - customer-service
+      - admin-service
+      - design-service
+      - tailor-service
+      - vendor-service
+      - payment-service
+      - measurement-service
+    networks:
+      - sewnova-network
+
+volumes:
+  mongodb_data:
+
+
+networks:
+  sewnova-network:
+    driver: bridge

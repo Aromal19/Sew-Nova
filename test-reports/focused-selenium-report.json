@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-10-21T21:34:38.704Z",
+  "testSuite": "Focused Selenium Tests",
+  "totalTests": 4,
+  "duration": 64.57,
+  "status": "FAILED",
+  "error": "Command failed: npx jest tests/selenium/focusedTests.js --verbose --detectOpenHandles --forceExit --testTimeout=60000",
+  "summary": "One or more test cases failed"
+}

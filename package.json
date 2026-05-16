@@ -1,0 +1,40 @@
+{
+  "name": "sewnova-focused-tests",
+  "version": "1.0.0",
+  "description": "Focused Selenium testing suite for SewNova - 4 test cases",
+  "main": "run-focused-tests.js",
+  "scripts": {
+    "test:focused": "node run-focused-tests.js",
+    "test:selenium": "npx jest tests/selenium/focusedTests.js --verbose --detectOpenHandles --forceExit --testTimeout=60000",
+    "test:selenium:headed": "HEADLESS=false npx jest tests/selenium/focusedTests.js --verbose --detectOpenHandles --forceExit --testTimeout=60000",
+    "setup:selenium": "npm install selenium-webdriver chromedriver --save-dev"
+  },
+  "keywords": [
+    "testing",
+    "selenium",
+    "sewnova",
+    "automation"
+  ],
+  "author": "SewNova Team",
+  "license": "MIT",
+  "devDependencies": {
+    "chromedriver": "^114.0.3",
+    "jest": "^29.7.0",
+    "selenium-webdriver": "^4.37.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/selenium/setup.js"
+    ],
+    "testMatch": [
+      "**/tests/selenium/simpleTests.js",
+      "**/tests/selenium/focusedTests.js",
+      "**/tests/selenium/mockTests.js"
+    ],
+    "testTimeout": 60000,
+    "verbose": true,
+    "detectOpenHandles": true,
+    "forceExit": true
+  }
+}
